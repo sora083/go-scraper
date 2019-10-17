@@ -46,9 +46,11 @@ update-deps: ## Update dependency libraries
 	go get -u
 
 .PHONY: build
-build: deps ## Build app for linux arch
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -v -o dist/$(NAME)
+build: deps ## Build app for Mac 64-bit
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -v -o dist/$(NAME)
+
+## CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -v -o dist/$(NAME) ## Build app for linux arch
 
 .PHONY: run
 run: ## Run script
-	./bin/go-scraper
+	./dist/go-scraper
