@@ -1,102 +1,93 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"net/smtp"
+	"io"
 	"os"
-	"time"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
-var baseURL = "https://avex.jp/nissy/news/"
+// CW: Web開発・システム設計
+var baseURL = "https://crowdworks.jp/public/jobs/category/241"
 
-type Article struct {
-	Title string
-	URL   string
-	Date  time.Time
+var outputFile = "/tmp/output.html"
+
+type Job struct {
+	Title  string
+	URL    string
+	Amount string
+	Expire string
 }
 
-type ArticleList []Article
+type JobList []Job
 
 func main() {
-	articleList, err := getList(baseURL)
+	//jobList, err := fetchJobList(baseURL)
+	jobList, err := testFetchJobList()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("articleList: ", articleList)
-	// err = articleList.exportCSV("output.csv")
-	// if err != nil {
-	// 	panic(err)
-	// }
 
-	from := "test@gmail.com"
-	to := "test@gmail.com"
-	host := "localhost"
-
-	msg := []byte("" +
-		"From: 送信した人 <" + from + ">\r\n" +
-		"To: " + to + "\r\n" +
-		"Subject: 件名 subject です\r\n" +
-		"\r\n" +
-		"テスト\r\n" +
-		"")
-
-	// func SendMail without auth
-	if err := smtp.SendMail(host+":25", nil, from, []string{to}, msg); err != nil {
-		fmt.Fprintf(os.Stderr, "エラー: %v\n", err)
-		os.Exit(1)
+	err = exportHTML(outputFile, jobList)
+	if err != nil {
+		panic(err)
 	}
 
-	fmt.Print("success")
+	body := readFile(outputFile)
+	if err != nil {
+		panic(err)
+	}
+	sendMail(body)
 
 	fmt.Println("finish")
 }
 
-func getList(url string) (ArticleList, error) {
-	articleList := make([]Article, 0)
-	doc, err := goquery.NewDocument(url)
-
-	fmt.Printf("doc.Url: %v\n", doc.Url)
-
+func exportHTML(filepath string, jobList JobList) error {
+	file, err := os.Create(filepath)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	doc.Find("dd").Each(func(_ int, s *goquery.Selection) {
+	writer := bufio.NewWriter(file)
 
-		article := Article{}
-		article.Title = s.Find("a").Text()
-		URI, _ := s.Find("a").Attr("href")
-		article.URL = baseURL + URI
-		articleList = append(articleList, article)
-	})
-	doc.Find("dt").Each(func(index int, s *goquery.Selection) {
-		date, _ := time.Parse("2006.01.02", s.Find("time").Text())
-		articleList[index].Date = date
-	})
-	return articleList, nil
+	writer.WriteString("<html><body><table><tr>")
+	writer.WriteString("<th>タイトル</th>")
+	writer.WriteString("<th>URL</th>")
+	writer.WriteString("<th>金額</th>")
+	writer.WriteString("<th>期限</th>")
+	writer.WriteString("</tr>")
+	for _, j := range jobList {
+		writer.WriteString("<tr>")
+		writer.WriteString("<td>" + j.Title + "</td>")
+		writer.WriteString("<td>" + j.URL + "</td>")
+		writer.WriteString("<td>" + j.Amount + "</td>")
+		writer.WriteString("<td>" + j.Expire + "</td>")
+		writer.WriteString("</tr>")
+	}
+	writer.WriteString("</tr></table></html>")
+
+	writer.Flush()
+	return nil
 }
 
-// func (articleList ArticleList) exportCSV(filepath string) error {
-// 	file, err := os.Create(filepath)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	converter, err := iconv.NewWriter(file, "utf-8", "sjis")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	writer := csv.NewWriter(converter)
-// 	header := []string{"日付", "タイトル", "URL"}
-// 	writer.Write(header)
-// 	for _, v := range articleList {
-// 		content := []string{
-// 			v.Date.Format("2006/01/02"),
-// 			v.Title,
-// 			v.URL,
-// 		}
-// 		writer.Write(content)
-// 	}
-// 	writer.Flush()
-// 	return nil
-// }
+func readFile(filepath string) string {
+	file, err := os.Open(filepath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReaderSize(file, 1000)
+	var tmp []byte
+	for {
+		line, err := reader.ReadBytes(100)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		tmp = append(tmp, line...)
+	}
+	str := string(tmp)
+	return str
+}
