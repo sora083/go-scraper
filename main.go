@@ -33,11 +33,12 @@ func main() {
 		panic(err)
 	}
 
-	body := readFile(outputFile)
+	htmlBody := readFile(outputFile)
 	if err != nil {
 		panic(err)
 	}
-	sendMail(body)
+	// TODO: textメール本文を作成
+	sendMail("", htmlBody)
 
 	fmt.Println("finish")
 }
