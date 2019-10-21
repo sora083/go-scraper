@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 )
 
@@ -50,19 +49,20 @@ func exportHTML(filepath string, jobList JobList) error {
 	}
 	writer := bufio.NewWriter(file)
 
-	writer.WriteString("<html><body><table><tr>")
+	writer.WriteString("<html><body><table>\n")
+	writer.WriteString("<tr>")
 	writer.WriteString("<th>タイトル</th>")
 	writer.WriteString("<th>URL</th>")
 	writer.WriteString("<th>金額</th>")
 	writer.WriteString("<th>期限</th>")
-	writer.WriteString("</tr>")
+	writer.WriteString("</tr>\n")
 	for _, j := range jobList {
 		writer.WriteString("<tr>")
 		writer.WriteString("<td>" + j.Title + "</td>")
 		writer.WriteString("<td>" + j.URL + "</td>")
 		writer.WriteString("<td>" + j.Amount + "</td>")
 		writer.WriteString("<td>" + j.Expire + "</td>")
-		writer.WriteString("</tr>")
+		writer.WriteString("</tr>\n")
 	}
 	writer.WriteString("</tr></table></html>")
 
@@ -77,18 +77,26 @@ func readFile(filepath string) string {
 	}
 	defer file.Close()
 
-	reader := bufio.NewReaderSize(file, 1000)
-	var tmp []byte
+	reader := bufio.NewReaderSize(file, 8192)
+	var (
+		tmp []byte
+	)
+
+	buf := make([]byte, 1024)
 	for {
-		line, err := reader.ReadBytes(100)
-		if err == io.EOF {
+		// nはバイト数を示す
+		n, err := reader.Read(buf)
+		// バイト数が0になることは、読み取り終了を示す
+		if n == 0 {
 			break
 		}
 		if err != nil {
-			panic(err)
+			break
 		}
-		tmp = append(tmp, line...)
+		// バイト型スライスを文字列型に変換してファイルの内容を出力
+		tmp = append(tmp, buf...)
 	}
+
 	str := string(tmp)
 	return str
 }
